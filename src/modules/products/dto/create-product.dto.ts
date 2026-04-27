@@ -96,6 +96,50 @@ export class CreateProductDto {
   stock!: number;
 
   @IsOptional()
+  @IsString()
+  gender?: string;
+
+  @IsOptional()
+  @IsString()
+  movement?: string;
+
+  @IsOptional()
+  @IsString()
+  bandMaterial?: string;
+
+  @IsOptional()
+  @IsString()
+  bandColor?: string;
+
+  @IsOptional()
+  @IsString()
+  strapLength?: string;
+
+  @IsOptional()
+  @IsString()
+  dialColor?: string;
+
+  @IsOptional()
+  @IsString()
+  dialType?: string;
+
+  @IsOptional()
+  @IsString()
+  dialShape?: string;
+
+  @IsOptional()
+  @IsString()
+  caseSizeDiameter?: string;
+
+  @IsOptional()
+  @IsString()
+  whatsInTheBox?: string;
+
+  @IsOptional()
+  @IsString()
+  modelName?: string;
+
+  @IsOptional()
   @IsBoolean()
   isBestSeller?: boolean;
 
@@ -130,6 +174,15 @@ export class CreateProductDto {
     typeof value === 'string' ? value.trim() : value,
   )
   thumbnail?: string;
+
+  @IsOptional()
+  @IsString()
+  @IsUrl({ require_protocol: true })
+  @MaxLength(1000)
+  @Transform(({ value }: { value: unknown }) =>
+    typeof value === 'string' ? value.trim() : value,
+  )
+  videoUrl?: string;
 
   @IsOptional()
   @IsArray()
@@ -172,6 +225,7 @@ export class CreateProductDto {
 
   @IsOptional()
   @IsArray()
+  @ArrayMaxSize(6)
   @ValidateNested({ each: true })
   @Type(() => CreateProductImageDto)
   images?: CreateProductImageDto[];

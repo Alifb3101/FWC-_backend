@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { APP_FILTER } from '@nestjs/core';
 import { ConfigModule } from '@nestjs/config';
 import { ScheduleModule } from '@nestjs/schedule';
 import configuration from './config/configuration';
@@ -9,18 +10,23 @@ import { UsersModule } from './modules/users/users.module';
 import { ProductsModule } from './modules/products/products.module';
 import { CategoriesModule } from './modules/categories/categories.module';
 import { BrandsModule } from './modules/brands/brands.module';
-import { CartModule } from './modules/cart/cart.module';
 import { OrdersModule } from './modules/orders/orders.module';
 import { PaymentsModule } from './modules/payments/payments.module';
 import { ReviewsModule } from './modules/reviews/reviews.module';
-import { WishlistModule } from './modules/wishlist/wishlist.module';
 import { AdminModule } from './modules/admin/admin.module';
 import { BannersModule } from './modules/banners/banners.module';
 import { CollectionsModule } from './modules/collections/collections.module';
 import { CelebrityModule } from './modules/celebrity/celebrity.module';
 import { HomepageModule } from './modules/homepage/homepage.module';
+import { CustomersModule } from './modules/customers/customers.module';
+import { DashboardModule } from './modules/dashboard/dashboard.module';
+import { UploadsModule } from './modules/uploads/uploads.module';
+import { SettingsModule } from './modules/settings/settings.module';
+import { CouponsModule } from './modules/coupons/coupons.module';
+import { MediaModule } from './modules/media/media.module';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
+import { ValidationExceptionFilter } from './common/filters/validation-exception.filter';
 
 @Module({
   imports: [
@@ -37,17 +43,27 @@ import { AppService } from './app.service';
     CategoriesModule,
     BrandsModule,
     BannersModule,
-    CartModule,
     OrdersModule,
     PaymentsModule,
     ReviewsModule,
-    WishlistModule,
     CollectionsModule,
     CelebrityModule,
     HomepageModule,
+    CustomersModule,
+    DashboardModule,
+    UploadsModule,
+    MediaModule,
+    SettingsModule,
+    CouponsModule,
     AdminModule,
   ],
   controllers: [AppController],
-  providers: [AppService],
+  providers: [
+    AppService,
+    {
+      provide: APP_FILTER,
+      useClass: ValidationExceptionFilter,
+    },
+  ],
 })
 export class AppModule {}

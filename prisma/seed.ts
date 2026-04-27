@@ -48,8 +48,6 @@ type SeedCelebrityLook = {
   productSlugs: string[];
 };
 
-const DEFAULT_PRODUCT_IMAGE_URL =
-  'https://www.monawatch.com/cdn/shop/files/SBTR029-700x700.webp?v=1747428186&width=620';
 
 const STABLE_PUBLISHED_AT = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
 
@@ -467,7 +465,7 @@ const celebrityLooks: SeedCelebrityLook[] = [
 ];
 
 function productImageUrls(productSlug: string): string[] {
-  return [DEFAULT_PRODUCT_IMAGE_URL];
+  return [];
 }
 
 async function seedBrands(): Promise<Map<string, number>> {

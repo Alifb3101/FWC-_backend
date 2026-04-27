@@ -55,7 +55,7 @@ export class HomepageService {
         brandNames.length > 0
           ? `${brandNames.join(' | ')} | Watches`
           : 'Watches',
-      description: `Discover ${bestSellers.length} best sellers and ${newArrivals.length} new arrivals across men, women, and kids collections.`,
+      description: `Discover ${bestSellers.length} best sellers and ${newArrivals.length} new arrivals across men, women, kids, and couple collections.`,
       keywords: keywordPool,
       canonicalUrl: `${process.env.FRONTEND_BASE_URL ?? ''}/`.replace(/\/$/, '/') ,
       ogImage: heroBanners[0]?.imageUrl ?? null,

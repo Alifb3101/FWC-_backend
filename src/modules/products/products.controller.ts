@@ -92,6 +92,24 @@ export class ProductsController {
     };
   }
 
+  @Get('brand/:brandSlug')
+  async findByBrand(
+    @Param('brandSlug') brandSlug: string,
+    @Query() query: QueryProductCollectionDto,
+  ) {
+    const result = await this.productsService.getProductsByBrand(
+      brandSlug,
+      query.page,
+      query.limit,
+      query.includeOutOfStock,
+    );
+
+    return {
+      success: true,
+      data: result,
+    };
+  }
+
   @Get(':slug')
   findBySlug(@Param('slug') slug: string) {
     return this.productsService.findBySlug(slug);

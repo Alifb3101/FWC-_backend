@@ -1,12 +1,15 @@
 import { NestFactory } from '@nestjs/core';
 import { Logger, ValidationPipe } from '@nestjs/common';
+import { NestExpressApplication } from '@nestjs/platform-express';
 import helmet from 'helmet';
 import compression from 'compression';
+import { existsSync, mkdirSync } from 'node:fs';
+import { join } from 'node:path';
 import { AppModule } from './app.module';
 
 async function bootstrap() {
   const logger = new Logger('Bootstrap');
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create<NestExpressApplication>(AppModule);
 
   app.setGlobalPrefix('api');
   app.useGlobalPipes(
@@ -20,36 +23,26 @@ async function bootstrap() {
   app.use(helmet());
   app.use(compression());
 
+  const corsOrigin = process.env.CORS_ORIGIN?.split(',').map((s) => s.trim()) ?? '*';
   app.enableCors({
-    origin: true,
+    origin: corsOrigin,
     credentials: true,
   });
 
   app.enableShutdownHooks();
 
-  const preferredPort = Number(process.env.PORT ?? 3000);
-  let activePort = preferredPort;
-
-  try {
-    await app.listen(preferredPort);
-  } catch (error: unknown) {
-    const errorCode =
-      typeof error === 'object' && error !== null && 'code' in error
-        ? String((error as { code?: unknown }).code)
-        : '';
-
-    if (errorCode !== 'EADDRINUSE') {
-      throw error;
-    }
-
-    activePort = preferredPort + 1;
-    logger.warn(
-      `Port ${preferredPort} is already in use. Starting on fallback port ${activePort}.`,
-    );
-    await app.listen(activePort);
+  const uploadsPath = join(process.cwd(), 'uploads');
+  if (!existsSync(uploadsPath)) {
+    mkdirSync(uploadsPath, { recursive: true });
   }
+  app.useStaticAssets(uploadsPath, {
+    prefix: '/uploads',
+  });
 
-  logger.log(`Server started on port ${activePort}`);
+  const port = Number(process.env.PORT ?? 3000);
+  await app.listen(port, '0.0.0.0');
+
+  logger.log(`Server started on port ${port}`);
   logger.log(`API prefix: /api`);
 }
 bootstrap();

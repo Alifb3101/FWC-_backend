@@ -9,13 +9,12 @@ import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import type { Cache } from 'cache-manager';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
+import { MediaService } from '../media/media.service';
 import { CreateProductDto } from './dto/create-product.dto';
 import { QueryProductCollectionDto } from './dto/query-product-collection.dto';
 import { QueryProductsDto } from './dto/query-products.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
 
-const DEFAULT_PRODUCT_IMAGE_URL =
-  'https://www.monawatch.com/cdn/shop/files/SBTR029-700x700.webp?v=1747428186&width=620';
 
 const productListSelect = Prisma.validator<Prisma.ProductSelect>()({
   id: true,
@@ -25,6 +24,20 @@ const productListSelect = Prisma.validator<Prisma.ProductSelect>()({
   modelNumber: true,
   shortDescription: true,
   description: true,
+  videoUrl: true,
+  gender: true,
+  movement: true,
+  bandMaterial: true,
+  bandColor: true,
+  strapLength: true,
+  dialColor: true,
+  dialType: true,
+  dialShape: true,
+  caseSizeDiameter: true,
+  whatsInTheBox: true,
+  modelName: true,
+  strapMaterial: true,
+  waterResistance: true,
   price: true,
   originalPrice: true,
   currency: true,
@@ -68,7 +81,7 @@ const productListSelect = Prisma.validator<Prisma.ProductSelect>()({
       priceDifference: true,
     },
   },
-});
+} as Prisma.ProductSelect);
 
 type ProductListRecord = Prisma.ProductGetPayload<{ select: typeof productListSelect }>;
 const productCollectionSelect = Prisma.validator<Prisma.ProductSelect>()({
@@ -130,6 +143,29 @@ type ProductCollectionListResult = {
   pagination: ProductCollectionPagination;
 };
 
+type ProductBrandItem = {
+  id: number;
+  name: string;
+  slug: string;
+  thumbnail: string | null;
+  price: number;
+  comparePrice: number | null;
+  discountPercent: number;
+  rating: number;
+  reviewCount: number;
+  currency: string;
+  inStock: boolean;
+  brand: {
+    name: string;
+    slug: string;
+  };
+};
+
+type ProductBrandListResult = {
+  items: ProductBrandItem[];
+  pagination: ProductCollectionPagination;
+};
+
 type ProductResponseItem = {
   id: number;
   name: string;
@@ -154,27 +190,22 @@ type ProductResponseItem = {
   seoTitle: string | null;
   seoDescription: string | null;
   watchDescription: string;
+  videoUrl: string | null;
   specifications: {
-    reference: string;
-    caliber: string;
-    collection: string;
-    movement: string;
-    caseSize: string;
-    thickness: string;
-    dialColor: string;
-    caseMaterial: string;
-    crystal: string;
-    lugWidth: string;
-    status: string;
-    waterResistance: string;
-    antiReflection: string;
+    watchMovement: string | null;
+    dialType: string | null;
+    gender: string | null;
+    caseSizeDiameter: string | null;
+    dialShape: string | null;
+    modelNumber: string | null;
+    modelName: string | null;
+    dialColor: string | null;
+    whatsInTheBox: string | null;
   };
   strap: {
-    strapReference: string;
-    strapType: string;
-    buckleType: string;
-    buckleWidth: string;
-    easyClick: string;
+    bandMaterial: string | null;
+    bandColor: string | null;
+    strapLength: string | null;
   };
   variants: Array<{
     id: number;
@@ -195,6 +226,7 @@ type ProductResponseItem = {
 export class ProductsService {
   constructor(
     private readonly prisma: PrismaService,
+    private readonly mediaService: MediaService,
     @Inject(CACHE_MANAGER) private readonly cacheManager: Cache,
   ) {}
 
@@ -355,13 +387,25 @@ export class ProductsService {
         originalPrice: createProductDto.originalPrice ?? null,
         currency: createProductDto.currency ?? 'AED',
         stock: createProductDto.stock,
+        videoUrl: createProductDto.videoUrl ?? null,
+        gender: createProductDto.gender ?? null,
+        movement: createProductDto.movement ?? null,
+        bandMaterial: createProductDto.bandMaterial ?? null,
+        bandColor: createProductDto.bandColor ?? null,
+        strapLength: createProductDto.strapLength ?? null,
+        dialColor: createProductDto.dialColor ?? null,
+        dialType: createProductDto.dialType ?? null,
+        dialShape: createProductDto.dialShape ?? null,
+        caseSizeDiameter: createProductDto.caseSizeDiameter ?? null,
+        whatsInTheBox: createProductDto.whatsInTheBox ?? null,
+        modelName: createProductDto.modelName ?? null,
         isBestSeller: createProductDto.isBestSeller ?? false,
         isNewArrival: createProductDto.isNewArrival ?? false,
         bestSellerScore: createProductDto.bestSellerScore ?? 0,
         isFeatured: createProductDto.isFeatured ?? false,
         isActive: createProductDto.isActive ?? true,
         publishedAt: createProductDto.publishedAt ?? null,
-        thumbnail: createProductDto.thumbnail ?? DEFAULT_PRODUCT_IMAGE_URL,
+        thumbnail: createProductDto.thumbnail ?? null,
         tags: createProductDto.tags ?? [],
         seoTitle: createProductDto.seoTitle ?? null,
         seoDescription: createProductDto.seoDescription ?? null,
@@ -462,6 +506,54 @@ export class ProductsService {
     };
   }
 
+  async getProductsByBrand(
+    brandSlug: string,
+    page: number,
+    limit: number,
+    includeOutOfStock: boolean,
+  ): Promise<ProductBrandListResult> {
+    const brand = await this.prisma.brand.findFirst({
+      where: {
+        slug: brandSlug,
+        isActive: true,
+      },
+      select: { id: true },
+    });
+
+    if (!brand) {
+      throw new NotFoundException('Brand not found');
+    }
+
+    const where: Prisma.ProductWhereInput = {
+      ...this.buildPublishedProductWhere(includeOutOfStock),
+      brand: {
+        slug: brandSlug,
+        isActive: true,
+      },
+    };
+
+    const [total, products] = await this.prisma.$transaction([
+      this.prisma.product.count({ where }),
+      this.prisma.product.findMany({
+        where,
+        orderBy: [{ publishedAt: 'desc' }, { createdAt: 'desc' }],
+        skip: (page - 1) * limit,
+        take: limit,
+        select: productCollectionSelect,
+      }),
+    ]);
+
+    return {
+      items: products.map((product) => this.mapBrandProduct(product)),
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.max(1, Math.ceil(total / limit)),
+      },
+    };
+  }
+
   calculateBestSellerScore(metrics: {
     soldCount: number;
     wishlistCount: number;
@@ -498,6 +590,7 @@ export class ProductsService {
         sku: true,
         price: true,
         originalPrice: true,
+        videoUrl: true,
       },
     });
 
@@ -530,6 +623,17 @@ export class ProductsService {
       );
     }
 
+    const previousImageUrls = updateProductDto.images
+      ? (
+          await this.prisma.productImage.findMany({
+            where: { productId: existing.id },
+            select: { url: true },
+          })
+        ).map((image) => image.url)
+      : [];
+
+    let incomingImageUrls: string[] | null = null;
+
     const updated = await this.prisma.$transaction(async (tx) => {
       const saved = await tx.product.update({
         where: { id: existing.id },
@@ -556,6 +660,40 @@ export class ProductsService {
             : {}),
           ...(updateProductDto.currency !== undefined ? { currency: updateProductDto.currency } : {}),
           ...(updateProductDto.stock !== undefined ? { stock: updateProductDto.stock } : {}),
+          ...(updateProductDto.videoUrl !== undefined
+            ? { videoUrl: updateProductDto.videoUrl }
+            : {}),
+          ...(updateProductDto.gender !== undefined ? { gender: updateProductDto.gender } : {}),
+          ...(updateProductDto.movement !== undefined
+            ? { movement: updateProductDto.movement }
+            : {}),
+          ...(updateProductDto.bandMaterial !== undefined
+            ? { bandMaterial: updateProductDto.bandMaterial }
+            : {}),
+          ...(updateProductDto.bandColor !== undefined
+            ? { bandColor: updateProductDto.bandColor }
+            : {}),
+          ...(updateProductDto.strapLength !== undefined
+            ? { strapLength: updateProductDto.strapLength }
+            : {}),
+          ...(updateProductDto.dialColor !== undefined
+            ? { dialColor: updateProductDto.dialColor }
+            : {}),
+          ...(updateProductDto.dialType !== undefined
+            ? { dialType: updateProductDto.dialType }
+            : {}),
+          ...(updateProductDto.dialShape !== undefined
+            ? { dialShape: updateProductDto.dialShape }
+            : {}),
+          ...(updateProductDto.caseSizeDiameter !== undefined
+            ? { caseSizeDiameter: updateProductDto.caseSizeDiameter }
+            : {}),
+          ...(updateProductDto.whatsInTheBox !== undefined
+            ? { whatsInTheBox: updateProductDto.whatsInTheBox }
+            : {}),
+          ...(updateProductDto.modelName !== undefined
+            ? { modelName: updateProductDto.modelName }
+            : {}),
           ...(updateProductDto.isBestSeller !== undefined
             ? { isBestSeller: updateProductDto.isBestSeller }
             : {}),
@@ -587,6 +725,7 @@ export class ProductsService {
         await tx.productImage.deleteMany({ where: { productId: existing.id } });
 
         const imagesToSave = this.withDefaultImage(updateProductDto.images);
+        incomingImageUrls = imagesToSave.map((image) => image.url);
 
         if (imagesToSave.length > 0) {
           await tx.productImage.createMany({
@@ -629,6 +768,21 @@ export class ProductsService {
 
     if (!product) {
       throw new NotFoundException('Product not found');
+    }
+
+    if (incomingImageUrls) {
+      const removedUrls = previousImageUrls.filter(
+        (url) => !incomingImageUrls?.includes(url),
+      );
+      await this.mediaService.deleteByUrls(removedUrls);
+    }
+
+    if (
+      updateProductDto.videoUrl !== undefined &&
+      existing.videoUrl &&
+      updateProductDto.videoUrl !== existing.videoUrl
+    ) {
+      await this.mediaService.deleteByUrls([existing.videoUrl]);
     }
 
     await this.clearHomeCollectionsCache();
@@ -721,6 +875,29 @@ export class ProductsService {
       currency: product.currency,
       inStock: product.stock > 0,
       badge,
+      brand: {
+        name: product.brand.name,
+        slug: product.brand.slug,
+      },
+    };
+  }
+
+  private mapBrandProduct(product: ProductCollectionRecord): ProductBrandItem {
+    const price = this.decimalToNumber(product.price) ?? 0;
+    const comparePrice = this.decimalToNumber(product.originalPrice);
+
+    return {
+      id: product.id,
+      name: product.name,
+      slug: product.slug,
+      thumbnail: product.thumbnail,
+      price,
+      comparePrice,
+      discountPercent: this.calculateDiscountPercent(price, comparePrice),
+      rating: Number(product.ratingAverage.toFixed(1)),
+      reviewCount: product.ratingCount,
+      currency: product.currency,
+      inStock: product.stock > 0,
       brand: {
         name: product.brand.name,
         slug: product.brand.slug,
@@ -900,6 +1077,8 @@ export class ProductsService {
     product: ProductListRecord,
     reviewMetric?: ReviewMetricRecord,
   ): ProductResponseItem {
+    const resolvedVideoUrl =
+      (product as ProductListRecord & { videoUrl?: string | null }).videoUrl ?? null;
     const price = this.decimalToNumber(product.price) ?? 0;
     const originalPrice = this.decimalToNumber(product.originalPrice);
     const images = this.ensureDefaultImageOnOutput(product.images.map((image) => image.url));
@@ -918,7 +1097,7 @@ export class ProductsService {
       currency: product.currency,
       stock: product.stock,
       availability: this.resolveAvailability(product.stock),
-      thumbnail: product.thumbnail ?? images[0] ?? DEFAULT_PRODUCT_IMAGE_URL,
+      thumbnail: product.thumbnail ?? images[0] ?? null,
       images,
       rating: reviewMetric?.rating ?? 0,
       reviewCount: reviewMetric?.reviewCount ?? 0,
@@ -934,27 +1113,22 @@ export class ProductsService {
       seoTitle: product.seoTitle,
       seoDescription: product.seoDescription,
       watchDescription: product.description,
+      videoUrl: resolvedVideoUrl,
       specifications: {
-        reference: 'H32461131',
-        caliber: 'F06.105',
-        collection: 'Jazzmaster',
-        movement: 'Quartz',
-        caseSize: '40mm',
-        thickness: '7.8',
-        dialColor: 'Black',
-        caseMaterial: 'Stainless steel',
-        crystal: 'Sapphire',
-        lugWidth: '20mm',
-        status: 'Current collection',
-        waterResistance: '5 bar (50m)',
-        antiReflection: 'Yes',
+        watchMovement: product.movement ?? null,
+        dialType: product.dialType ?? null,
+        gender: product.gender ?? null,
+        caseSizeDiameter: product.caseSizeDiameter ?? null,
+        dialShape: product.dialShape ?? null,
+        modelNumber: product.modelNumber ?? null,
+        modelName: product.modelName ?? null,
+        dialColor: product.dialColor ?? null,
+        whatsInTheBox: product.whatsInTheBox ?? null,
       },
       strap: {
-        strapReference: 'H605000401',
-        strapType: 'Stainless steel',
-        buckleType: 'Butterfly',
-        buckleWidth: '18mm',
-        easyClick: 'Yes',
+        bandMaterial: product.bandMaterial ?? null,
+        bandColor: product.bandColor ?? null,
+        strapLength: product.strapLength ?? null,
       },
       variants: product.variants.map((variant) => {
         const variantPrice =
@@ -1000,27 +1174,17 @@ export class ProductsService {
     images?: Array<{ url: string; sortOrder?: number }>,
   ): Array<{ url: string; sortOrder?: number }> {
     if (!images || images.length === 0) {
-      return [{ url: DEFAULT_PRODUCT_IMAGE_URL, sortOrder: 0 }];
+      return [];
     }
 
-    const normalized = images.map((image, index) => ({
+    return images.map((image, index) => ({
       url: image.url,
       sortOrder: image.sortOrder ?? index,
     }));
-
-    if (!normalized.some((image) => image.url === DEFAULT_PRODUCT_IMAGE_URL)) {
-      normalized.unshift({ url: DEFAULT_PRODUCT_IMAGE_URL, sortOrder: 0 });
-    }
-
-    return normalized;
   }
 
   private ensureDefaultImageOnOutput(images: string[]): string[] {
-    if (images.includes(DEFAULT_PRODUCT_IMAGE_URL)) {
-      return images;
-    }
-
-    return [DEFAULT_PRODUCT_IMAGE_URL, ...images];
+    return images;
   }
 
   private resolveAvailability(stock: number): 'out_of_stock' | 'low_stock' | 'in_stock' {

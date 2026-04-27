@@ -9,7 +9,7 @@ export class CollectionsService {
     const categories = await this.prisma.category.findMany({
       where: {
         slug: {
-          in: ['men', 'women', 'kids'],
+          in: ['men', 'women', 'kids', 'couple'],
         },
         isActive: true,
       },
@@ -33,6 +33,10 @@ export class CollectionsService {
       kids: {
         id: categoryBySlug.get('kids')?.id ?? null,
         posterUrl: 'https://i.postimg.cc/yx0rm8SJ/KIDS.png',
+      },
+      couple: {
+        id: categoryBySlug.get('couple')?.id ?? null,
+        posterUrl: null,
       },
     };
   }

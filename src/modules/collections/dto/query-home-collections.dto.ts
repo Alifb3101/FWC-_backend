@@ -9,3 +9,4 @@ export class QueryHomeCollectionsDto {
   @Max(12)
   limit = 4;
 }
+
