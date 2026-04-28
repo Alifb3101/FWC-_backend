@@ -26,6 +26,7 @@ import { CouponsModule } from './modules/coupons/coupons.module';
 import { MediaModule } from './modules/media/media.module';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
+import { HealthController } from './health.controller';
 import { ValidationExceptionFilter } from './common/filters/validation-exception.filter';
 
 @Module({
@@ -57,7 +58,7 @@ import { ValidationExceptionFilter } from './common/filters/validation-exception
     CouponsModule,
     AdminModule,
   ],
-  controllers: [AppController],
+  controllers: [AppController, HealthController],
   providers: [
     AppService,
     {
