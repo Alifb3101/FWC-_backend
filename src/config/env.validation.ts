@@ -36,20 +36,25 @@ class EnvironmentVariables {
   @IsString()
   UPLOAD_LOCAL_BASE_URL?: string;
 
+  @IsOptional()
   @IsString()
-  R2_ACCESS_KEY!: string;
+  R2_ACCESS_KEY?: string;
 
+  @IsOptional()
   @IsString()
-  R2_SECRET_KEY!: string;
+  R2_SECRET_KEY?: string;
 
+  @IsOptional()
   @IsString()
-  R2_BUCKET!: string;
+  R2_BUCKET?: string;
 
+  @IsOptional()
   @IsString()
-  R2_ENDPOINT!: string;
+  R2_ENDPOINT?: string;
 
+  @IsOptional()
   @IsString()
-  R2_PUBLIC_URL!: string;
+  R2_PUBLIC_URL?: string;
 
   @IsOptional()
   @IsNumberString()
@@ -65,7 +70,7 @@ export function validateEnv(config: Record<string, unknown>): EnvironmentVariabl
     enableImplicitConversion: true,
   });
 
-  const errors = validateSync(validatedConfig, { skipMissingProperties: false });
+  const errors = validateSync(validatedConfig, { skipMissingProperties: true });
 
   if (errors.length > 0) {
     throw new Error(errors.toString());
