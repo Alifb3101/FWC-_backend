@@ -11,7 +11,7 @@
     "dev:safe": "npm run free:3000 && npm run dev",
     "dev:reset": "npm run free:3000 && npm run db:sync && npm run dev",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
-    "start": "nest start",
+    "start": "node dist/src/main.js",
     "start:dev": "nest start --watch",
     "start:debug": "nest start --debug --watch",
     "prestart:prod": "npm run build",
